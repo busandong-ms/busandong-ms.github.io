@@ -78,7 +78,18 @@ html:not(.bands) .pband.bot .bb-main,html:not(.bands) .pband.bot .bb-hint{displa
 input[type=color]{width:48px;height:44px;border:1.5px solid #D5DCEB;border-radius:12px;padding:3px;background:#fff}
 .hint{font-size:13px;color:var(--muted);margin:0}
 :focus-visible{outline:3px solid var(--sun);outline-offset:2px}
-.render .bar,.render .panel{display:none!important}
+.render .bar,.render .panel,.render .cover{display:none!important}
+.cover{position:fixed;inset:0;z-index:35;background:radial-gradient(circle at 50% 40%,#22553C,#173B2A 70%);display:flex;align-items:center;justify-content:center;cursor:pointer;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+.cv-in{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center}
+.cv-k{margin:0;font-weight:700;font-size:15px;color:#CFE6D6}
+.cv-t{margin:0;font-family:var(--display);font-size:clamp(44px,13vw,72px);line-height:1.05;color:#fff}
+.cv-t em{font-style:normal;color:#FF8A4C}
+.cv-play{width:96px;height:96px;border-radius:50%;border:0;background:var(--sun);color:#173B2A;display:flex;align-items:center;justify-content:center;padding-left:6px;box-shadow:0 0 0 0 rgba(255,210,94,.6);animation:pulse 1.6s ease-in-out infinite;cursor:pointer}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,210,94,.55)}70%{box-shadow:0 0 0 22px rgba(255,210,94,0)}100%{box-shadow:0 0 0 0 rgba(255,210,94,0)}}
+.cv-h{margin:0;font-weight:900;font-size:19px;color:#fff;line-height:1.5}
+.cv-h span{font-weight:700;font-size:15px;color:#CFE6D6}
+.cv-quiet{min-height:44px;padding:0 14px;border:0;background:transparent;color:#A9C9B4;font:inherit;font-size:14px;text-decoration:underline;cursor:pointer}
+@media (prefers-reduced-motion: reduce){.cv-play{animation:none}}
 html:not(.teacher) .bar,html:not(.teacher) .panel{display:none!important}
 .cb{white-space:nowrap}
 </style>
@@ -132,6 +143,15 @@ html:not(.teacher) .bar,html:not(.teacher) .panel{display:none!important}
 <footer class="pband bot" id="bandBot"><div class="bb-main">11월 10일(화) · 본교 체육관</div><button class="sbtn" id="soundBtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg><span id="soundTxt">음악과 함께 보기</span></button><div class="bb-hint">두 손가락으로 확대하면 자세히 볼 수 있어요</div></footer>
 </div>
 
+<div class="cover" id="cover" hidden>
+  <div class="cv-in">
+    <p class="cv-k">부산동중학교 · 학부모님께 전하는 축제 소식</p>
+    <p class="cv-t">동중 와글와글<br><em>페스티벌</em></p>
+    <button class="cv-play" type="button" aria-label="음악과 함께 시작"><svg width="44" height="44" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg></button>
+    <p class="cv-h">화면을 눌러 주세요<br><span>음악과 함께 시작해요</span></p>
+    <button class="cv-quiet" id="quietBtn" type="button">소리 없이 보기</button>
+  </div>
+</div>
 <div class="bar" id="bar">
   <button class="cb" id="play" type="button" aria-label="일시정지"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" id="playIco"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></button>
   <button class="cb" id="again" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>다시</button>
@@ -335,10 +355,20 @@ html:not(.teacher) .bar,html:not(.teacher) .panel{display:none!important}
   apply();
 
   var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function beginWithMusic(){var cv=document.getElementById('cover');if(cv)cv.hidden=true;musicOn=true;stxt.textContent='음악 끄기';
+    if(reduce){tl.progress(1);setPlay(false);}else{tl.play(0);setPlay(true);}playJingle();}
   function start(){build();
     if(RENDER){window.__READY=true;return;}
-    if(reduce){tl.progress(1);setPlay(false);return;}
-    tl.play(0);}
+    tl.progress(0).pause();
+    /* try sound right away; phones usually block it until the first tap */
+    var ok=false;try{if(AC){actx=actx||new AC();ok=actx.state==='running';}}catch(e){}
+    if(ok){beginWithMusic();return;}
+    var cv=document.getElementById('cover');cv.hidden=false;
+    function go(e){cv.removeEventListener('click',go);if(actx&&actx.state==='suspended')actx.resume();beginWithMusic();}
+    cv.addEventListener('click',go);
+    document.getElementById('quietBtn').addEventListener('click',function(e){e.stopPropagation();cv.removeEventListener('click',go);cv.hidden=true;
+      if(reduce){tl.progress(1);setPlay(false);}else{tl.play(0);setPlay(true);}});
+  }
   if(window.gsap){ (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(function(){setTimeout(start,250)}); }
   else { $$('.base,.ov').forEach(function(e){e.style.opacity=1}); }
 })();
